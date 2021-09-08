@@ -32,6 +32,9 @@ from taintFlow import *
 import web3
 from web3 import Web3, IPCProvider
 
+# 新增
+from graphviz import Digraph
+
 log = logging.getLogger(__name__)
 
 UNSIGNED_BOUND_NUMBER = 2**256 - 1
@@ -240,8 +243,23 @@ def build_cfg_and_analyze():
         full_sym_exec()  # jump targets are constructed on the fly
         if global_params.CFG:
             # print_cfg()
+            gen_cfg_png()
             pass
 
+# 生成cfg关系图
+def gen_cfg_png():
+    print("=======生成cfg图=======")
+    g = Digraph('测试图片')
+    for block in vertices.values():
+        g.node(name=str(block.start),color='red')
+    
+    for edge in edges:
+        g.edge(str(edge), str(edges[edge]))
+    
+    # g.view()
+    print("=======生成cfg图完成=======")
+
+# TODO:修改输出cfg
 def print_cfg():
     f = open(c_name.replace('.disasm', '').replace(':', '-')+'.dot', 'w')
     f.write('digraph osiris_cfg {\n')

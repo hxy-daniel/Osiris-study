@@ -1,0 +1,1 @@
+dot -Tpng SimpleDAO_0.4.19.sol-Mallory2.evm.dot -o SimpleDAO_0.4.19.sol-Mallory2.png

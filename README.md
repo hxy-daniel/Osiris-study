@@ -1,6 +1,7 @@
 Osiris
 ======
 
+1. 基于oyente的环境
 1. 升级支持Python3
 1. 给`print`加`()`
 1. 删除`z3`文件夹(如果`z3`已安装)
@@ -83,6 +84,8 @@ Osiris
 1. `basicblock.py`中`(int, long)`替换为`six.integer_types`, `import six`
 
 1. `taintFlow.py`中的所有取整`/`替换为`//`
+
+1. `apt install graphviz` `pip install graphviz`根据生成的`.dot`生成`png`流程图
 
 
 ======
