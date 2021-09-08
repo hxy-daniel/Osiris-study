@@ -3,6 +3,7 @@ import sha3
 from tokenize import NUMBER, NAME, NEWLINE
 import re
 import math
+import six
 import sys
 import pickle
 import json
@@ -11,7 +12,8 @@ import signal
 import time
 import logging
 import os.path
-import z3
+# import z3
+from z3 import *
 import binascii
 
 from collections import namedtuple
@@ -56,7 +58,7 @@ class Parameter:
             "global_state": {},
             "path_conditions_and_vars": {}
         }
-        for (attr, default) in attr_defaults.iteritems():
+        for (attr, default) in six.iteritems(attr_defaults):
             setattr(self, attr, kwargs.get(attr, default))
 
     def copy(self):
@@ -173,6 +175,8 @@ def isTesting():
 # configurations specified in a test file
 def compare_stack_unit_test(stack):
     try:
+        # 新增一行
+        result_file = os.path.join(global_params.RESULTS_DIR, c_name+'.json'.split('/')[-1])
         size = int(result_file.readline())
         content = result_file.readline().strip('\n')
         if size == len(stack) and str(stack) == content:
@@ -235,7 +239,8 @@ def build_cfg_and_analyze():
         construct_static_edges()
         full_sym_exec()  # jump targets are constructed on the fly
         if global_params.CFG:
-            print_cfg()
+            # print_cfg()
+            pass
 
 def print_cfg():
     f = open(c_name.replace('.disasm', '').replace(':', '-')+'.dot', 'w')
@@ -244,7 +249,8 @@ def print_cfg():
     f.write('size = "240"\n')
     f.write('graph[fontname = Courier, fontsize = 14.0, labeljust = l, nojustify = true];node[shape = record];\n')
     address_width = 10
-    if len(hex(instructions.keys()[-1])) > address_width:
+    # if len(hex(instructions.keys()[-1])) > address_width:
+    if len(hex(list(instructions.keys())[-1])) > address_width:
         address_width = len(hex(instructions.keys()[-1]))
     for block in vertices.values():
         #block.display()
@@ -256,8 +262,10 @@ def print_cfg():
             if len(error_list) > 0:
                 error = True
                 label += "{0:#0{1}x}".format(address, address_width)+" "+instruction+" **[Error: "+error_list[0]["type"]+"]**"+"\l"
+                # label += "{0} {1}".format(address, address_width)+" "+instruction+" **[Error: "+error_list[0]["type"]+"]**"+"\l"
             else:
                 label += "{0:#0{1}x}".format(address, address_width)+" "+instruction+"\l"
+                # label += "{0} {1}".format(address, address_width)+" "+instruction+"\l"
             address += 1 + (len(instruction.split(' ')[1].replace("0x", "")) / 2)
         if error:
             f.write(label+'",style=filled,color=red];\n')
@@ -608,7 +616,7 @@ def sym_exec_block(params):
         print("STACK: " + str(stack))
 
     current_edge = Edge(pre_block, block)
-    if visited_edges.has_key(current_edge):
+    if current_edge in visited_edges:
         updated_count_number = visited_edges[current_edge] + 1
         visited_edges.update({current_edge: updated_count_number})
     else:
@@ -665,7 +673,7 @@ def sym_exec_block(params):
 
         if global_params.DEBUG_MODE:
             if depth > global_params.DEPTH_LIMIT:
-                print "!!! DEPTH LIMIT EXCEEDED !!!"
+                print ("!!! DEPTH LIMIT EXCEEDED !!!")
 
         total_no_of_paths += 1
 
@@ -684,9 +692,9 @@ def sym_exec_block(params):
                 pass
 
         if global_params.DEBUG_MODE:
-            print "Termintating path: "+str(total_no_of_paths)
-            print "Depth: "+str(depth)
-            print ""
+            print ("Termintating path: "+str(total_no_of_paths))
+            print ("Depth: "+str(depth))
+            print ("")
 
         display_analysis(analysis)
         if global_params.UNIT_TEST == 1:
@@ -1456,7 +1464,7 @@ def sym_exec_ins(params):
             s0 = stack.pop(0)
             s1 = stack.pop(0)
             if isAllReal(s0, s1):
-                data = [mem[s0+i*32] for i in range(s1/32)]
+                data = [mem[s0+i*32] for i in range(s1//32)]
                 input = ''
                 symbolic = False
                 for value in data:
@@ -1464,7 +1472,7 @@ def sym_exec_ins(params):
                         input += str(value)
                         symbolic = True
                     else:
-                        input += binascii.unhexlify('%064x' % value)
+                        input += binascii.unhexlify('%064x' % value).decode('utf-8', 'strict')
                 if input in sha3_list:
                     stack.insert(0, sha3_list[input])
                 else:
@@ -1535,7 +1543,7 @@ def sym_exec_ins(params):
                     params_code = source_code[idx1:idx2]
                     params_list = params_code.split(",")
                     params_list = [param.split(" ")[-1] for param in params_list]
-                    param_idx = (position - 4) / 32
+                    param_idx = (position - 4) // 32
                     new_var_name = params_list[param_idx]
                     source_map.var_names.append(new_var_name)
                 else:
@@ -1588,7 +1596,10 @@ def sym_exec_ins(params):
             current_miu_i = global_state["miu_i"]
 
             if isAllReal(mem_location, current_miu_i, code_from, no_bytes):
-                temp = long(math.ceil((mem_location + no_bytes) / float(32)))
+                if six.PY2:
+                    temp = int(math.ceil((mem_location + no_bytes) / float(32)))
+                else:
+                    temp = int(math.ceil((mem_location + no_bytes) / float(32)))
                 if temp > current_miu_i:
                     current_miu_i = temp
 
@@ -1653,8 +1664,8 @@ def sym_exec_ins(params):
             no_bytes = stack.pop(0)
             current_miu_i = global_state["miu_i"]
 
-            if isAllReal(address, mem_location, current_miu_i, code_from, no_bytes) and USE_GLOBAL_BLOCKCHAIN:
-                temp = long(math.ceil((mem_location + no_bytes) / float(32)))
+            if isAllReal(address, mem_location, current_miu_i, code_from, no_bytes) and global_params.USE_GLOBAL_BLOCKCHAIN:
+                temp = int(math.ceil((mem_location + no_bytes) / float(32)))
                 if temp > current_miu_i:
                     current_miu_i = temp
 
@@ -1743,7 +1754,10 @@ def sym_exec_ins(params):
             address = stack.pop(0)
             current_miu_i = global_state["miu_i"]
             if isAllReal(address, current_miu_i) and address in mem:
-                temp = long(math.ceil((address + 32) / float(32)))
+                if six.PY2:
+                    temp = int(math.ceil((address + 32) / float(32)))
+                else:
+                    temp = int(math.ceil((address + 32) / float(32)))
                 if temp > current_miu_i:
                     current_miu_i = temp
                 value = mem[address]
@@ -1793,7 +1807,10 @@ def sym_exec_ins(params):
                     memory[stored_address + i] = value % 256
                     value /= 256
             if isAllReal(stored_address, current_miu_i):
-                temp = long(math.ceil((stored_address + 32) / float(32)))
+                if six.PY2:
+                    temp = int(math.ceil((stored_address + 32) / float(32)))
+                else:
+                    temp = int(math.ceil((stored_address + 32) / float(32)))
                 if temp > current_miu_i:
                     current_miu_i = temp
                 mem[stored_address] = stored_value  # note that the stored_value could be symbolic
@@ -1826,7 +1843,10 @@ def sym_exec_ins(params):
             stored_value = temp_value % 256  # get the least byte
             current_miu_i = global_state["miu_i"]
             if isAllReal(stored_address, current_miu_i):
-                temp = long(math.ceil((stored_address + 1) / float(32)))
+                if six.PY2:
+                    temp = int(math.ceil((stored_address + 1) / float(32)))
+                else:
+                    temp = int(math.ceil((stored_address + 1) / float(32)))
                 if temp > current_miu_i:
                     current_miu_i = temp
                 mem[stored_address] = stored_value  # note that the stored_value could be symbolic
@@ -1914,8 +1934,9 @@ def sym_exec_ins(params):
             vertices[start].set_jump_target(target_address)
             flag = stack.pop(0)
 
-            if flag.__class__.__name__ == "BitVecNumRef":
-                flag = flag.as_long()
+            # 新注释
+            # if flag.__class__.__name__ == "BitVecNumRef":
+            #     flag = flag.as_long()
 
             #branch_expression = (BitVecVal(0, 1) == BitVecVal(1, 1))
             #if isReal(flag):
@@ -1928,7 +1949,8 @@ def sym_exec_ins(params):
             #    else:
             #        branch_expression = (BitVecVal(0, 1) == BitVecVal(0, 1))
 
-            branch_expression = (flag != 0)
+            # 新注释
+            # branch_expression = (flag != 0)
 
             """if isReal(flag) or flag.__class__.__name__ == "BitVecNumRef":
                 new_var_name = gen.gen_conditional_var()
@@ -1941,6 +1963,13 @@ def sym_exec_ins(params):
                     branch_expression = (new_var == 0)
             else:
                 branch_expression = (flag != 0)"""
+            # 新增
+            branch_expression = (BitVecVal(0, 1) == BitVecVal(1, 1))
+            if isReal(flag):
+                if flag != 0:
+                    branch_expression = True
+            else:
+                branch_expression = (flag != 0)
 
             vertices[start].set_branch_expression(branch_expression)
             if target_address not in edges[start]:
@@ -2207,7 +2236,7 @@ def sym_exec_ins(params):
         perform_taint_analysis(vertices[params.pre_block], vertices[params.block], next_blocks, previous_pc, instr_parts[0], previous_stack, stack, arithmetic_errors)
     except Exception as e:
         traceback.print_exc()
-        print "Exception in taint analysis: "+str(e)
+        print ("Exception in taint analysis: "+str(e))
         raise e
 
     try:
@@ -2322,7 +2351,7 @@ def detect_money_concurrency():
         results["money_concurrency"] = bool(flows)
         log.info("\t  Concurrency bug: \t %s", bool(flows))
 
-    # if PRINT_MODE: print "All false positive cases: ", false_positive
+    # if PRINT_MODE: print ("All false positive cases: ", false_positive)
     log.debug("Concurrency in paths: ")
     if global_params.REPORT_MODE:
         rfile.write("Number of path: " + str(n) + "\n")
@@ -2379,7 +2408,7 @@ def check_callstack_attack(disasm):
     problematic_instructions = ['CALL', 'CALLCODE']
     pcs = []
     try:
-        for i in xrange(0, len(disasm)):
+        for i in range(0, len(disasm)):
             instruction = disasm[i]
             if instruction[1] in problematic_instructions:
                 pc = int(instruction[0])
@@ -2511,13 +2540,13 @@ def detect_arithmetic_errors():
     global results
 
     if global_params.DEBUG_MODE:
-        print ""
-        print "Number of arithmetic errors: "+str(len(arithmetic_errors))
+        print ("")
+        print ("Number of arithmetic errors: "+str(len(arithmetic_errors)))
         for error in arithmetic_errors:
             if error["validated"]:
-                print error
-                print error["instruction"]
-                print ""
+                print (error)
+                print (error["instruction"])
+                print ("")
 
     arithmetic_bug_found = any([arithmetic_error for arithmetic_error in arithmetic_errors if arithmetic_error["validated"]])
     overflow_bug_found   = any([ErrorTypes.OVERFLOW in arithmetic_error["type"] for arithmetic_error in arithmetic_errors if arithmetic_error["validated"]])
@@ -2763,8 +2792,8 @@ def detect_bugs():
     global global_problematic_pcs
 
     if global_params.DEBUG_MODE:
-        print "Number of total paths: "+str(total_no_of_paths)
-        print ""
+        print ("Number of total paths: "+str(total_no_of_paths))
+        print ("")
 
     if instructions:
         evm_code_coverage = float(len(visited_pcs)) / len(instructions.keys()) * 100
@@ -2863,7 +2892,7 @@ def handler(signum, frame):
 
     if global_params.UNIT_TEST == 2 or global_params.UNIT_TEST == 3:
         exit(TIME_OUT)
-    print "!!! SYMBOLIC EXECUTION TIMEOUT !!!"
+    print ("!!! SYMBOLIC EXECUTION TIMEOUT !!!")
     g_timeout = True
     raise Exception("timeout")
 
@@ -2872,8 +2901,8 @@ def results_for_web():
 
     results["filename"] = source_map.cname.split(":")[0].split("/")[-1]
     results["cname"] = source_map.cname.split(":")[1]
-    print "======= results ======="
-    print json.dumps(results)
+    print ("======= results =======")
+    print (json.dumps(results))
 
 def main(contract, contract_sol, _source_map = None):
     global c_name

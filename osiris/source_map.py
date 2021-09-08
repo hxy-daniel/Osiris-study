@@ -87,13 +87,18 @@ class SourceMap:
             return False
         return False
 
+    # def __get_source(self):
+    #     fname = self.__get_filename()
+    #     if SourceMap.sources.has_key(fname):
+    #         return SourceMap.sources[fname]
+    #     else:
+    #         SourceMap.sources[fname] = Source(fname)
+    #         return SourceMap.sources[fname]
     def __get_source(self):
         fname = self.__get_filename()
-        if SourceMap.sources.has_key(fname):
-            return SourceMap.sources[fname]
-        else:
+        if fname not in SourceMap.sources:
             SourceMap.sources[fname] = Source(fname)
-            return SourceMap.sources[fname]
+        return SourceMap.sources[fname]
 
     def __get_var_names(self):
         return SourceMap.ast_helper.extract_state_variable_names(self.cname)

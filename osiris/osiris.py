@@ -14,7 +14,8 @@ import z3.z3util
 
 from source_map import SourceMap
 from utils import run_command
-from HTMLParser import HTMLParser
+# from HTMLParser import HTMLParser
+from html.parser import HTMLParser
 
 def cmd_exists(cmd):
     '''
@@ -71,8 +72,8 @@ def extract_bin_str(s):
     contracts = [contract for contract in contracts if contract[1]]
     if not contracts:
         logging.critical("Solidity compilation failed")
-        print "======= error ======="
-        print "Solidity compilation failed"
+        print ("======= error =======")
+        print ("Solidity compilation failed")
         exit()
     return contracts
 
@@ -124,7 +125,7 @@ def analyze(processed_evm_file, disasm_file, source_map = None):
     try:
         disasm_p = subprocess.Popen(
             ["evm", "disasm", processed_evm_file], stdout=subprocess.PIPE)
-        disasm_out = disasm_p.communicate()[0]
+        disasm_out = disasm_p.communicate()[0].decode('utf-8', 'strict')
     except:
         logging.critical("Disassembly failed.")
         exit()
