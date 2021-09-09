@@ -100,6 +100,7 @@ def init_taint_analysis():
     false_positives = []
     strings = set()
 
+# 如果操作码在SOURCES中或算术错误
 def introduce_taint(instruction, pc, arithmetic_errors):
     taint = None
     if instruction.opcode in SOURCES:
@@ -607,7 +608,7 @@ def remove_taint(matches, taint, tainted_stack, tainted_memory, tainted_storage,
                         tainted_storage[address].taint.remove(tainted_object)
                     if len(tainted_storage[address].taint) == 0:
                         tainted_storage[address].taint = None
-
+# 指令执行后(父块, 当前块, 子块, 父指令pc, 执行完后的opcode/当前执行的操作码, 父栈/指令执行前的栈, 指令执行后的栈, 算术错误)
 def perform_taint_analysis(previous_block, current_block, next_blocks, pc, opcode, previous_stack, current_stack, arithmetic_errors):
     global branches
     global tainted_stack
@@ -621,23 +622,28 @@ def perform_taint_analysis(previous_block, current_block, next_blocks, pc, opcod
 
     try:
         # Get number of items taken/added to stack by this opcode
-        items_taken_count = get_opcode(opcode)[1]
-        items_added_count = get_opcode(opcode)[2]
+        # 通过此操作码获取/添加到堆栈的项目数
+        items_taken_count = get_opcode(opcode)[1]   # 从stack拿几个
+        items_added_count = get_opcode(opcode)[2]   # 向stack压几个
 
         # IN: arguments pop'ed from (previous) stack
+        # 获取从（前一个）堆栈中弹出的参数
         data_in = []
         for i in range(items_taken_count):
             data_in.append(previous_stack[i])
 
         # OUT: values written to (new) stack
+        # 获取写入当前stack的数据
         data_out = []
         for i in range(items_added_count):
             data_out.append(current_stack[i])
 
         # Create an instruction object
+        # 创建instruction对象(操作码, 拿的数据, 压的数据)
         instruction = InstructionObject(opcode, data_in, data_out)
 
         # Load tainted stack, memory and storage if we are at a branch
+        # 如果我们在一个分支，加载受污染的stack、memory和storage
         if pc in branches and previous_block.get_end_address() in branches[pc]:
             tainted_stack = branches[pc][previous_block.get_end_address()]["tainted_stack"][:]
             tainted_memory = copy.deepcopy(branches[pc][previous_block.get_end_address()]["tainted_memory"])
@@ -645,6 +651,7 @@ def perform_taint_analysis(previous_block, current_block, next_blocks, pc, opcod
 
         #################### TAINT LOGIC ###################
         # Introduce taint
+        # 根据指令引入污染，返回Instruction对象
         taint = introduce_taint(instruction, pc, arithmetic_errors)
         # Check taint
         check_taint(tainted_stack, tainted_memory, tainted_storage, instruction, sink_flows, arithmetic_errors, previous_block)

@@ -242,8 +242,8 @@ def build_cfg_and_analyze():
         construct_static_edges()
         full_sym_exec()  # jump targets are constructed on the fly
         if global_params.CFG:
-            # print_cfg()
-            gen_cfg_png()
+            print_cfg()
+            # gen_cfg_png()
             pass
 
 # 生成cfg关系图
@@ -284,7 +284,7 @@ def print_cfg():
             else:
                 label += "{0:#0{1}x}".format(address, address_width)+" "+instruction+"\l"
                 # label += "{0} {1}".format(address, address_width)+" "+instruction+"\l"
-            address += 1 + (len(instruction.split(' ')[1].replace("0x", "")) / 2)
+            address += 1 + (len(instruction.split(' ')[1].replace("0x", "")) // 2)
         if error:
             f.write(label+'",style=filled,color=red];\n')
         else:
@@ -918,6 +918,7 @@ def sym_exec_ins(params):
             instruction_object.data_out = [computed]
             stack.insert(0, computed)
             # Check for addition overflow
+            # 整型相关操作时检测溢出bug
             if is_input_tainted(instruction_object):
                 addition_overflow_check(first, second, analysis, instruction_object, path_conditions_and_vars["path_condition"], arithmetic_errors, arithmetic_models, global_state["pc"] - 1)
         else:
@@ -1893,7 +1894,7 @@ def sym_exec_ins(params):
             if address in global_state["Ia"]:
                 value = global_state["Ia"][address]
                 stack.insert(0, value)
-            else:
+            else:   # global_state["Ia"]中没有该address则生成符号变量
                 #new_var_name = None
                 #if source_map:
                 #    new_var_name = source_map.find_source_code(global_state["pc"] - 1)
@@ -2245,6 +2246,7 @@ def sym_exec_ins(params):
         raise Exception('UNKNOWN INSTRUCTION: ' + instr_parts[0])
 
     """ Perform taint analysis """
+    # 对每个指令进行污点分析
     try:
         next_blocks = []
         if start in edges:

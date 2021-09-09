@@ -81,6 +81,8 @@ Osiris
 
     `input += binascii.unhexlify('%064x' % value)`替换为`input += binascii.unhexlify('%064x' % value).decode('utf-8', 'strict')`
 
+    `address += 1 + (len(instruction.split(' ')[1].replace("0x", "")) / 2)`替换为`address += 1 + (len(instruction.split(' ')[1].replace("0x", "")) // 2)`
+
 1. `basicblock.py`中`(int, long)`替换为`six.integer_types`, `import six`
 
 1. `taintFlow.py`中的所有取整`/`替换为`//`
